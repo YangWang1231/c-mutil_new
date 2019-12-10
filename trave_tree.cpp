@@ -1,10 +1,17 @@
+#define BOOST_THREAD_VERSION 5
 #define BOOST_THREAD_PROVIDES_FUTURE
 #define BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
+#define BOOST_THREAD_PROVIDES_FUTURE_WHEN_ALL_WHEN_ANY
 #include<array>
 #include<random>
 #include<iostream>
+#include <boost/thread.hpp>
+#include<boost/thread/future.hpp>
+#include <thread>
+
 using namespace std;
 
+const int big_number = 200000000;
 class Tree; //forward declare
 
 class TreeNode
@@ -20,12 +27,40 @@ public:
 
 	TreeNode& get_l_child() { return *p_left; }
 	TreeNode& get_r_child() { return *p_right; }
+
+	int compute_syn()
+	{//const sleep time 2s.
+		//std::this_thread::sleep_for(2s);
+		
+		//auto start = std::chrono::high_resolution_clock::now();
+
+		//int result = traverse_async(boost::ref(new_t.get_root())).get();
+		for (int i = 0; i < big_number; ++i)
+			;
+
+		/*auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double, std::milli> elapsed = end - start;
+		std::cout << "compute_syn cost time " << elapsed.count() << " ms\n";*/
+
+		return m_const_time;
+	}
+
+	boost::future<int> compute_result()
+	{
+		boost::future<int> f = boost::async(&TreeNode::compute_syn, this);
+		return f;
+	}
+
+
 private:
 	shared_ptr<TreeNode> p_left;
 	shared_ptr<TreeNode> p_right;
 
 	int m_const_time; //tree node has only one data member, indicate how long will cost when process the node.
+	static int total_const_time;
 };
+
+int TreeNode::total_const_time = 0;
 
 void TreeNode::print_node(int level)
 {
@@ -67,11 +102,13 @@ TreeNode::TreeNode()
 	std::uniform_int_distribution<int> uniform_dist(300, 6000);
 
 	m_const_time = uniform_dist(e1);
+
+	TreeNode::total_const_time += m_const_time;
 }
 
 TreeNode::~TreeNode()
 {
-	cout << "tree node destruct was called." << endl;
+//	cout << "tree node destruct was called." << endl;
 }
 
 class Tree
@@ -81,6 +118,7 @@ public:
 	~Tree();
 	void createTree(int level);
 	void printTree();
+	TreeNode& get_root() { return *p_root; }
 private:
 	shared_ptr<TreeNode> p_root;
 };
@@ -94,6 +132,7 @@ void Tree::createTree(int nlevel)
 {//create a tree has level == nlevel, and full bintree.
 	p_root = make_shared<TreeNode>();
 	p_root->create_node(nlevel);
+	printf("total cost time is %d\n", TreeNode::total_const_time);
 }
 
 Tree::Tree()
@@ -106,58 +145,72 @@ Tree::~Tree()
 
 }
 
-
-#include <boost/thread.hpp>
-#include<boost/thread/future.hpp>
-
-int twice(int m) {
-	return 2 * m;
+int some_costtime_cal(int n)
+{
+	return n;
 }
 
-#include<future>
-void test_stl_async(int i)
+#include <tuple>
+boost::future<int> combine_results_async(boost::future<std::tuple<boost::future<boost::future<int>>, boost::future<boost::future<int>>, boost::future<int>>>  a)
 {
-	std::future<int> a = std::async(twice, i);
+	auto tuple_future = a.get();
+	auto v1 = boost::move(std::get<0>(tuple_future));
+	auto v2 = boost::move(std::get<1>(tuple_future));
+	auto v3 = boost::move(std::get<2>(tuple_future));
+	int value1 = v1.get().get();
+	int value2 = v2.get().get();
+	int value3 = v3.get();
+	return boost::async(some_costtime_cal,value1 + value2 + value3);
 }
 
-int accumulate()
+boost::future<int> traverse_async(TreeNode& t)
 {
-	int sum = 0;
-	for (int i = 0; i < 5; ++i)
-		sum += i;
-	return sum;
-}
-
-int parallel_sum(int* data, int size)
-{
-	int sum = 0;
-	if (size < 1000)
-		for (int i = 0; i < size; ++i)
-			sum += data[i];
-	else {
-		auto handle = boost::async(parallel_sum, data + size / 2, size - size / 2);
-		sum += parallel_sum(data, size / 2);
-		sum += handle.get();
-	}
-	return sum;
-}
-
-boost::future<int> traverse(TreeNode& t)
-{
-	boost::future<int> f = boost::async(accumulate);
-	boost::future<int> f = boost::async(twice, 5);
 	if (t.has_child()) {
-		std::array<boost::future<int>, 2> results;
-		results[0] = boost::async(traverse, boost::ref(t));
-		
+		std::array<boost::future<boost::future<int>>, 2> results;
+		results[0] = boost::async(traverse_async, boost::ref(t.get_l_child()) );
+		results[1] = boost::async(traverse_async, boost::ref(t.get_r_child()));
+		//boost::future<std::tuple<boost::future<boost::future<int>>, boost::future<boost::future<int>>, boost::future<int>>> f = boost::when_all(boost::move(results[0]), boost::move(results[1]), boost::move(t.compute_result()));
+		auto f = boost::when_all(boost::move(results[0]), boost::move(results[1]), boost::move(t.compute_result()));
+		return combine_results_async(boost::move(f));
 	}
-	boost::future<int> p;
-	return p;
+	return t.compute_result();
 }
 
+int combine_results_sync(std::array<int, 3> a)
+{
+	auto v1 = a[0];
+	auto v2 = a[1];
+	auto v3 = a[2];
+	return some_costtime_cal(v1 + v2 + v3);
+}
+
+int traverse_sync(TreeNode& t)
+{
+	if (t.has_child()) {
+		std::array<int, 3> results;
+		results[0] = traverse_sync(boost::ref(t.get_l_child()));
+		results[1] = traverse_sync(boost::ref(t.get_r_child()));
+		results[2] = t.compute_syn();
+		return combine_results_sync(boost::move(results));
+	}
+	return t.compute_syn();
+}
+
+#include <chrono>
 void main()
 {
 	Tree new_t;
 	new_t.createTree(4);
 	new_t.printTree();
+	
+	auto start = std::chrono::high_resolution_clock::now();
+	
+	int result = traverse_async(boost::ref(new_t.get_root())).get();
+	//int result = traverse_sync(boost::ref(new_t.get_root()));
+
+	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::duration<double, std::milli> elapsed = end - start;
+	std::cout << "Waited " << elapsed.count() << " ms\n";
+
+	printf("the result of cal tree is %d\n", result);
 }
