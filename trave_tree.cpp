@@ -137,7 +137,7 @@ void Tree::createTree(int nlevel)
 {//create a tree has level == nlevel, and full bintree.
 	p_root = make_shared<TreeNode>();
 	p_root->create_node(nlevel);
-	//printf("total cost time is %d\n", TreeNode::total_const_time);
+	printf("total cost time is %d\n", TreeNode::total_const_time);
 }
 
 Tree::Tree()
@@ -232,10 +232,9 @@ int traverse_sync(TreeNode& t)
 
 #include <chrono>
 
-void calc_syn(int n)
+void calc_syn(Tree& new_t)
 {
-	Tree new_t;
-	new_t.createTree(n);
+
 	//new_t.printTree();
 
 	auto start = std::chrono::high_resolution_clock::now();
@@ -251,10 +250,9 @@ void calc_syn(int n)
 	printf("the result of cal tree is %d\n", result);
 }
 
-void calc_asyn(int n)
+void calc_asyn(Tree& new_t)
 {
-	Tree new_t;
-	new_t.createTree(n);
+	
 	//new_t.printTree();
 
 	auto start = std::chrono::high_resolution_clock::now();
@@ -275,12 +273,14 @@ void experiment(int n)
 	std::cout << "tree level: " << n << std::endl;
 	std::cout << std::endl;
 
+	Tree new_t;
+	new_t.createTree(n);
 
 	std::cout << "ayn cal: " << std::endl;
-	calc_asyn(n);
+	calc_asyn(new_t);
 
 	std::cout << "syn cal: " << std::endl;
-	calc_syn(n);
+	calc_syn(new_t);
 	std::cout << std::endl;
 }
 
