@@ -178,9 +178,19 @@ boost::future<int> traverse_async(TreeNode& t)
 		std::array<boost::future<boost::future<int>>, 2> results;
 		results[0] = boost::async(traverse_async, boost::ref(t.get_l_child()) );
 		results[1] = boost::async(traverse_async, boost::ref(t.get_r_child()));
-		//boost::future<std::tuple<boost::future<boost::future<int>>, boost::future<boost::future<int>>, boost::future<int>>> f = boost::when_all(boost::move(results[0]), boost::move(results[1]), boost::move(t.compute_result()));
 		auto f = boost::when_all(boost::move(results[0]), boost::move(results[1]), boost::move(t.compute_result()));
 		return combine_results_async(boost::move(f));
+		
+		////expend combine_results_async to inline
+		//auto tuple_future = f.get(); //blocked in here. why get future of future, will force function runs to end.
+		//auto v1 = boost::move(std::get<0>(tuple_future));
+		//auto v2 = boost::move(std::get<1>(tuple_future));
+		//auto v3 = boost::move(std::get<2>(tuple_future));
+		//int value1 = v1.get().get();
+		//int value2 = v2.get().get();
+		//int value3 = v3.get();
+		//return boost::async(some_costtime_cal, value1 + value2 + value3);
+
 	}
 	return t.compute_result();
 }
