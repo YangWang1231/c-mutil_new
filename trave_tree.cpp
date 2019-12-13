@@ -276,17 +276,22 @@ void experiment(int n)
 	Tree new_t;
 	new_t.createTree(n);
 
-	std::cout << "ayn cal: " << std::endl;
+	std::cout << "\nayn cal: " << std::endl;
 	calc_asyn(new_t);
 
-	std::cout << "syn cal: " << std::endl;
+	std::cout << "\nsyn cal: " << std::endl;
 	calc_syn(new_t);
 	std::cout << std::endl;
+	std::cout << "--------------------------------------------" << std::endl;
 }
 
 void main()
 {
-	experiment(9);
-	//for(auto i = 4; i < 20; ++i)
-	//	experiment(i);
+	//experiment(9);
+	for(auto i = 4; i < 20; ++i)
+		experiment(i);
+
+	int key = 0;
+	cin >> key;
+	
 }
