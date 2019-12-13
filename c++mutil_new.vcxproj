@@ -150,6 +150,7 @@
   <ItemGroup>
     <ClCompile Include="taskques_new.cpp" />
     <ClCompile Include="test_future.cpp" />
+    <ClCompile Include="test_when_calculate.cpp" />
     <ClCompile Include="trave_tree.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -8,10 +8,11 @@
 #include <boost/thread.hpp>
 #include<boost/thread/future.hpp>
 #include <thread>
+#include<limits>
 
 using namespace std;
 
-const int big_number = 200000000;
+const int big_number = std::numeric_limits<int>::max();
 class Tree; //forward declare
 
 class TreeNode
@@ -35,6 +36,7 @@ public:
 		//auto start = std::chrono::high_resolution_clock::now();
 
 		//int result = traverse_async(boost::ref(new_t.get_root())).get();
+		int tempvar = 0;
 		for (int i = 0; i < big_number; ++i)
 			;
 
@@ -160,7 +162,7 @@ int some_costtime_cal(int n)
 #include <tuple>
 boost::future<int> combine_results_async(boost::future<std::tuple<boost::future<boost::future<int>>, boost::future<boost::future<int>>, boost::future<int>>>  a)
 {
-	auto tuple_future = a.get();
+	auto tuple_future = a.get(); //blocked in here. why get future of future, will force function runs to end.
 	auto v1 = boost::move(std::get<0>(tuple_future));
 	auto v2 = boost::move(std::get<1>(tuple_future));
 	auto v3 = boost::move(std::get<2>(tuple_future));
@@ -258,7 +260,8 @@ void calc_asyn(Tree& new_t)
 	auto start = std::chrono::high_resolution_clock::now();
 
 	//int result = traverse_async_simple(boost::ref(new_t.get_root()));
-	int result = traverse_async(boost::ref(new_t.get_root())).get();
+	auto result_f = traverse_async(boost::ref(new_t.get_root()));
+	int result = result_f.get();
 
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double, std::milli> elapsed = end - start;
@@ -275,6 +278,7 @@ void experiment(int n)
 
 	Tree new_t;
 	new_t.createTree(n);
+	new_t.printTree();
 
 	std::cout << "\nayn cal: " << std::endl;
 	calc_asyn(new_t);
@@ -285,11 +289,12 @@ void experiment(int n)
 	std::cout << "--------------------------------------------" << std::endl;
 }
 
+//find where blocked.
 void main()
 {
-	//experiment(9);
-	for(auto i = 4; i < 20; ++i)
-		experiment(i);
+	experiment(1);
+	/*for(auto i = 4; i < 20; ++i)
+		experiment(i);*/
 
 	int key = 0;
 	cin >> key;
